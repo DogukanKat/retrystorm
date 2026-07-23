@@ -1,26 +1,20 @@
 package retrystorm;
 
-public final class Main {
+import retrystorm.engine.Simulator;
 
-    private static final int EXIT_USAGE = 2;
+// Temporary entry point: a deterministic engine smoke run, replaced by the
+// scenario runner in a later step.
+public final class Main {
 
     private Main() {
     }
 
     public static void main(String[] args) {
-        if (args.length != 1) {
-            System.err.println("usage: retrystorm <scenario.yaml>");
-            System.exit(EXIT_USAGE);
-            return;
+        Simulator sim = new Simulator(42L);
+        for (int tick = 1; tick <= 5; tick++) {
+            sim.schedule(tick * 1_000_000L, () -> System.out.println("tick at " + sim.now() + " us"));
         }
-
-        System.out.println("retrystorm " + version());
-        System.out.println("scenario: " + args[0]);
-        System.out.println("simulation core not implemented yet");
-    }
-
-    private static String version() {
-        String v = Main.class.getPackage().getImplementationVersion();
-        return v != null ? v : "dev";
+        sim.run(5_000_000L);
+        System.out.println("engine smoke run complete at " + sim.now() + " us");
     }
 }

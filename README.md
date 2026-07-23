@@ -1,47 +1,67 @@
 # retrystorm
 
-A discrete-event simulation of retry storms — how naive retries, backoff, jitter, token buckets and circuit breakers affect recovery from overload in distributed systems.
+A discrete-event simulation of retry storms: how retries, backoff, jitter, token buckets and circuit breakers change the way a system recovers from overload.
 
 ## Why
 
-Retry storms are a classic way for distributed systems to fall over and *stay* fallen over. A transient overload — a brief traffic spike, a slow dependency, a blip of packet loss — causes some requests to fail. Clients retry those failures, and the retries pile on top of the load that is already there, so the system stays saturated even after the original trigger is long gone. This is a **metastable failure**: the system has a stable healthy state and a stable collapsed state, and a short shock can knock it from the first into the second, where it remains until load is forcibly shed. See Marc Brooker's writing (https://brooker.co.za/blog/) and the HotOS'21 paper "Metastable Failures in Distributed Systems" (https://sigops.org/s/conferences/hotos/2021/papers/hotos21-s11-bronson.pdf) for the background that inspired this project.
+A short overload makes some requests fail. Clients retry them, and those retries pile on top of the load that caused the failure.
+
+So the system can stay down long after the original trigger is gone. It has two stable states, healthy and collapsed, and a brief shock is enough to push it into the second one. Usually the only way out is to shed load by hand.
+
+This is called metastable failure. Background reading:
+
+- Marc Brooker's blog: https://brooker.co.za/blog/
+- "Metastable Failures in Distributed Systems", HotOS'21: https://sigops.org/s/conferences/hotos/2021/papers/hotos21-s11-bronson.pdf
 
 ## What it simulates
 
-Generic clients and servers are connected in configurable topologies — fan-in, fan-out, and chains — defined entirely in a scenario file rather than in code. Each client issues requests at some offered rate and, on failure or timeout, consults a pluggable retry policy to decide whether and when to retry; each server has a finite capacity and queue and sheds load once saturated. As the simulation runs it tracks goodput, total offered load, queue depth, and p99 latency, so different retry strategies can be compared under the same overload.
+Clients and servers are generic. Nothing in the model is tied to a specific domain.
+
+You wire them into a topology in code, not in a config file: fan-in, fan-out or chains. Each client sends requests at some rate and has its own retry policy. Each server has a fixed capacity and a bounded queue, and rejects new work once the queue is full.
+
+Each run records goodput, offered load, queue depth and p99 latency. That is what makes the policies comparable under the same overload.
 
 ## Status
 
-Work in progress — simulation core under development. The Java project builds and runs; the entry point (`retrystorm.Main`) currently only validates its scenario argument, and the engine, servers, clients, policies and metrics are not implemented yet.
+Work in progress.
+
+- **Done:** the engine (`Event`, `Simulator`). Integer microsecond clock, one seeded `Random`, and events at the same instant run in the order they were scheduled. Unit tested.
+- **Temporary:** `retrystorm.Main` only runs a short smoke run of the engine. It takes no arguments and will be replaced by the scenario runner.
+- **Missing:** servers, clients, retry policies, metrics, CSV output, scenario runner. Nothing is measured or plotted yet.
 
 ## Planned experiments
 
-Retry policies to compare, holding topology and load fixed:
+Same topology, same load, one policy at a time:
 
-- **No-retry baseline** — clients never retry; the control case.
-- **Naive N-retry** — a fixed number of immediate retries per request.
-- **Exponential backoff** — retry delay grows exponentially with attempts.
-- **Backoff + jitter** — exponential backoff with randomization to de-synchronize retries.
-- **Token bucket / adaptive** — a retry budget that throttles retries under sustained failure.
-- **Circuit breaker** — stop retrying (and often stop sending) once a failure threshold is crossed, then probe for recovery.
+- **No retry** — the baseline.
+- **Fixed retry** — retry N times, same delay every time.
+- **Exponential backoff** — the delay doubles on each attempt.
+- **Backoff with jitter** — random delay, so clients stop retrying in lockstep.
+- **Token bucket** — a retry budget that runs out if failures keep coming.
+- **Circuit breaker** — stop retrying after too many failures, then probe to see if it is safe again.
 
 ## Layout
 
-- `sim/` — Java 21 discrete-event simulation (Gradle project).
-- `plots/` — Python plotting scripts and their dependencies.
-- `results/` — simulation output (CSV); generated, git-ignored.
+- `sim/` — the Java 21 simulation (Gradle project)
+- `plots/` — Python plotting scripts
+- `results/` — CSV output, git-ignored
 
 ## Running
 
-Simulation (Java / Gradle):
+The simulation. For now this is only the engine smoke run, and it takes no arguments:
 
 ```bash
-cd sim && ./gradlew run --args="path/to/scenario.yaml"
+cd sim && ./gradlew run
 ```
 
-Plots (Python — not implemented yet):
+Tests:
 
 ```bash
-cd plots
-pip install -r requirements.txt && python plot_results.py results/example.csv
+cd sim && ./gradlew test
+```
+
+Plots. `plot_results.py` is still a stub and raises `NotImplementedError`, and there is no CSV to plot yet. You can install the dependencies already:
+
+```bash
+cd plots && pip install -r requirements.txt
 ```
