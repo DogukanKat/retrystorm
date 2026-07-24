@@ -27,9 +27,10 @@ Work in progress.
 
 - **Done:** the engine (`Event`, `Simulator`). Integer microsecond clock, one seeded `Random`, and events at the same instant run in the order they were scheduled.
 - **Done:** the server side (`Request`, `Server`, `ExponentialServiceTime`). Fixed worker count, bounded FIFO queue, and work is rejected once the queue is full.
-- **Done:** the client side (`Client`, `RateSchedule`) and the first two policies, `NoRetry` and `FixedRetry`. Poisson arrivals, a timeout on every attempt, and a hard attempt cap.
+- **Done:** the client side (`Client`, `RateSchedule`). Poisson arrivals, a timeout on every attempt, and a hard attempt cap.
+- **Done:** four policies — `NoRetry`, `FixedRetry`, `ExponentialBackoff` and `ExponentialBackoffWithJitter`.
 - **Temporary:** `retrystorm.Main` only runs a short smoke run of the engine. It takes no arguments and will be replaced by the scenario runner.
-- **Missing:** backoff, jitter, token bucket and circuit breaker policies. Metrics, CSV output and the scenario runner. Nothing is measured or plotted yet.
+- **Missing:** the token bucket and circuit breaker policies. Metrics, CSV output and the scenario runner. Nothing is measured or plotted yet.
 
 ## Planned experiments
 
