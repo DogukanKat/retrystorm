@@ -25,9 +25,10 @@ Each run records goodput, offered load, queue depth and p99 latency. That is wha
 
 Work in progress.
 
-- **Done:** the engine (`Event`, `Simulator`). Integer microsecond clock, one seeded `Random`, and events at the same instant run in the order they were scheduled. Unit tested.
+- **Done:** the engine (`Event`, `Simulator`). Integer microsecond clock, one seeded `Random`, and events at the same instant run in the order they were scheduled.
+- **Done:** the server side (`Request`, `Server`, `ExponentialServiceTime`). Fixed worker count, bounded FIFO queue, and work is rejected once the queue is full.
 - **Temporary:** `retrystorm.Main` only runs a short smoke run of the engine. It takes no arguments and will be replaced by the scenario runner.
-- **Missing:** servers, clients, retry policies, metrics, CSV output, scenario runner. Nothing is measured or plotted yet.
+- **Missing:** clients, retry policies, metrics, CSV output, scenario runner. Nothing is measured or plotted yet.
 
 ## Planned experiments
 
