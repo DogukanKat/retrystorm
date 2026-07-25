@@ -23,11 +23,19 @@ public final class Simulator {
         return random;
     }
 
-    /** Schedules {@code action} to run {@code delayMicros} from now; negative delays are rejected. */
+    /**
+     * Schedules {@code action} to run {@code delayMicros} from now. A negative
+     * delay is rejected, as is one that would push the event past the end of
+     * the clock.
+     */
     public void schedule(long delayMicros, Runnable action) {
         Objects.requireNonNull(action, "action");
         if (delayMicros < 0) {
             throw new IllegalArgumentException("delay must be non-negative: " + delayMicros);
+        }
+        if (delayMicros > Long.MAX_VALUE - nowMicros) {
+            throw new IllegalArgumentException(
+                    "delay " + delayMicros + " overflows the clock at " + nowMicros);
         }
         queue.add(new Event(nowMicros + delayMicros, nextSeq++, action));
     }

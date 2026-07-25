@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -231,6 +232,34 @@ class SimulatorTest {
         sim.run(100);
         assertThrows(IllegalArgumentException.class, () -> sim.schedule(-50, () -> {
         }));
+    }
+
+    @Test
+    void acceptsTheLargestDelayTheClockCanHold() {
+        Simulator sim = new Simulator(1L);
+        sim.schedule(Long.MAX_VALUE, () -> {
+        });
+        assertEquals(1, sim.pendingEvents());
+    }
+
+    @Test
+    void acceptsADelayLandingExactlyOnTheClockLimit() {
+        Simulator sim = new Simulator(1L);
+        sim.run(1);
+        sim.schedule(Long.MAX_VALUE - 1, () -> {
+        });
+        assertEquals(1, sim.pendingEvents());
+    }
+
+    @Test
+    void rejectsADelayThatOverflowsTheClock() {
+        Simulator sim = new Simulator(1L);
+        sim.run(1);
+        IllegalArgumentException failure = assertThrows(IllegalArgumentException.class,
+                () -> sim.schedule(Long.MAX_VALUE, () -> {
+                }));
+        assertTrue(failure.getMessage().contains("overflows the clock"),
+                "the failure must name the overflow, not a derived negative time: " + failure.getMessage());
     }
 
     @Test
