@@ -212,6 +212,39 @@ class ClientTest {
     }
 
     @Test
+    void notifiesThePolicyWhenARequestSucceeds() {
+        Simulator sim = new Simulator(1L);
+        CountingPolicy policy = new CountingPolicy();
+        Client client = client(sim, server(sim, 1, 0), policy, GENEROUS_TIMEOUT_MICROS, 3);
+        client.send();
+        sim.runToCompletion();
+        assertEquals(1, policy.successes);
+        assertEquals(0, policy.failures);
+    }
+
+    @Test
+    void notifiesThePolicyOnEveryFailedAttempt() {
+        Simulator sim = new Simulator(1L);
+        CountingPolicy policy = new CountingPolicy();
+        Client client = client(sim, fullServer(sim), policy, GENEROUS_TIMEOUT_MICROS, 3);
+        client.send();
+        sim.runToCompletion();
+        assertEquals(3, policy.failures, "one notification per attempt");
+        assertEquals(0, policy.successes);
+    }
+
+    @Test
+    void countsAFailureThenASuccessAcrossARetry() {
+        Simulator sim = new Simulator(1L);
+        CountingPolicy policy = new CountingPolicy();
+        Client client = client(sim, brieflyBusyServer(sim), policy, GENEROUS_TIMEOUT_MICROS, 3);
+        client.send();
+        sim.runToCompletion();
+        assertEquals(1, policy.failures);
+        assertEquals(1, policy.successes);
+    }
+
+    @Test
     void requestIsUnsettledWhileInFlight() {
         Simulator sim = new Simulator(1L);
         Client client = client(sim, server(sim, 1, 0), new NoRetry(), GENEROUS_TIMEOUT_MICROS, 1);
@@ -262,6 +295,27 @@ class ClientTest {
     private static Client client(Simulator sim, Server server, RetryPolicy policy,
                                  long timeoutMicros, int maxAttempts, RateSchedule schedule) {
         return new Client(sim, server, policy, schedule, timeoutMicros, maxAttempts);
+    }
+
+    private static final class CountingPolicy implements RetryPolicy {
+
+        private int successes;
+        private int failures;
+
+        @Override
+        public RetryDecision decide(int attempt, FailureKind failureKind, Simulator sim) {
+            return RetryDecision.retryAfter(RETRY_DELAY_MICROS);
+        }
+
+        @Override
+        public void onSuccess() {
+            successes++;
+        }
+
+        @Override
+        public void onFailure() {
+            failures++;
+        }
     }
 
     private static final class RecordingPolicy implements RetryPolicy {

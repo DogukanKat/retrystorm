@@ -11,4 +11,12 @@ public interface RetryPolicy {
      * @param sim         engine, for the clock and the shared random source
      */
     RetryDecision decide(int attempt, FailureKind failureKind, Simulator sim);
+
+    /** Reports that a request finally succeeded. Stateful budgets recover here. */
+    default void onSuccess() {
+    }
+
+    /** Reports a failed attempt, before {@link #decide} is consulted for it. */
+    default void onFailure() {
+    }
 }

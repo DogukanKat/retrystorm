@@ -77,6 +77,7 @@ public final class Client {
     private void onServed(Request request, Attempt attempt) {
         if (attempt.resolve()) {
             request.settle(Outcome.SUCCESS);
+            policy.onSuccess();
         }
     }
 
@@ -87,6 +88,7 @@ public final class Client {
     }
 
     private void handleFailure(Request request, FailureKind failureKind) {
+        policy.onFailure();
         if (request.attempts() >= maxAttempts) {
             request.settle(terminalOutcome(failureKind));
             return;
