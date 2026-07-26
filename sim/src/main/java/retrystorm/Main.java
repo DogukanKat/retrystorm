@@ -15,6 +15,8 @@ import retrystorm.metrics.RunResult;
 import retrystorm.scenario.CanonicalExperiment;
 import retrystorm.scenario.CanonicalExperiment.NamedPolicy;
 import retrystorm.scenario.ClientCountSweep;
+import retrystorm.scenario.CooldownRow;
+import retrystorm.scenario.CooldownSweep;
 import retrystorm.scenario.HerdExperiment;
 import retrystorm.scenario.HerdRow;
 import retrystorm.scenario.MultiSeedValidation;
@@ -47,9 +49,10 @@ public final class Main {
             case "phase" -> runPhase();
             case "analyze-spikes" -> runSpikeAnalysis();
             case "analyze-breaker-state" -> runBreakerStateAnalysis();
+            case "analyze-cooldown" -> runCooldownSweep();
             default -> {
-                System.err.println("unknown mode: " + mode + " (expected 'canonical', 'validate', "
-                        + "'sweep', 'herd', 'phase', 'analyze-spikes' or 'analyze-breaker-state')");
+                System.err.println("unknown mode: " + mode + " (expected 'canonical', 'validate', 'sweep', "
+                        + "'herd', 'phase', 'analyze-spikes', 'analyze-breaker-state' or 'analyze-cooldown')");
                 System.exit(2);
             }
         }
@@ -109,5 +112,13 @@ public final class Main {
                 PhaseExperiment.DEFAULT_UTILISATIONS, MultiSeedValidation.DEFAULT_SEEDS);
         BreakerStateAnalysis.writeCsv(RESULTS_DIR.resolve("breaker_state.csv"), rows);
         System.out.println("wrote breaker_state.csv (" + rows.size() + " rows)");
+    }
+
+    private static void runCooldownSweep() throws IOException {
+        List<CooldownRow> rows = CooldownSweep.run(CanonicalExperiment.scenario(),
+                CooldownSweep.DEFAULT_COOLDOWNS_MICROS, HerdExperiment.DEFAULT_CLIENT_COUNTS,
+                MultiSeedValidation.DEFAULT_SEEDS);
+        CooldownSweep.writeCsv(RESULTS_DIR.resolve("cooldown.csv"), rows);
+        System.out.println("wrote cooldown.csv (" + rows.size() + " rows)");
     }
 }

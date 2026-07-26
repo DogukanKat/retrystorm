@@ -89,6 +89,23 @@ Recovery instability is the standard deviation of per-second goodput in the
 30–60 s window. Shows recovery goodput and its instability per breaker, client
 count and seed.
 
+## Cooldown sweep
+
+```bash
+cd sim && ./gradlew run --args="analyze-cooldown"
+```
+
+Output: `results/cooldown.csv`.
+Columns: `breaker,cooldown_s,client_count,seed,recovery_goodput,recovery_instability`.
+Reruns both breakers (retry-only, fail-fast) at cooldowns 2 s, 10 s and 60 s over
+client counts 1, 10, 50, 100, 200 and seeds 42-46. Recovery goodput is reported
+next to instability so a collapsed run is not read as a stable one. Demonstrated
+that retry-only is cooldown-insensitive (it never sheds admission), while for
+fail-fast a 10 s cooldown lowers the recovery oscillation but a 60 s cooldown
+(Resilience4j's default) is longer than the 30 s recovery window: a breaker that
+trips during overload stays open to the horizon, so recovery goodput collapses to
+near zero instead of oscillating.
+
 ## Baseline-utilisation phase map
 
 ```bash
@@ -140,8 +157,9 @@ Reruns the retry-only and fail-fast breakers with 100 independent clients at
 utilisations 0.5, 0.6, 0.7, 0.8, 0.82, 0.85, 0.88, 0.9, 0.92 over seeds 42-46, and samples every
 breaker's open/half-open state every 10 ms across the baseline window (0-20 s,
 before any overload). Reports the fraction of breaker-samples spent tripped.
-Demonstrated that below 0.9 utilisation both breakers stay closed for the whole
-baseline (0%), while at 0.9 they trip in steady state (fail-fast ~30%, retry-only
-~73%), accounting for the depressed baseline goodput at high utilisation.
+Demonstrated that below 0.82 utilisation both breakers stay closed for the whole
+baseline (0%); from 0.82 the tripped fraction ramps up as a slope, not a step
+(retry-only 7% → 34% → 51% → 73% and fail-fast 2% → 8% → 16% → 30% at 0.82, 0.85,
+0.88, 0.9), accounting for the depressed baseline goodput at high utilisation.
 
 

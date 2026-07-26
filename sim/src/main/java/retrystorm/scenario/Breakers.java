@@ -16,12 +16,20 @@ public final class Breakers {
     }
 
     public static CircuitBreaker retryOnly() {
+        return retryOnly(OPEN_DURATION_MICROS);
+    }
+
+    public static CircuitBreaker retryOnly(long openDurationMicros) {
         return new CircuitBreaker(MAX_RETRIES, RETRY_DELAY_MICROS, WINDOW_SIZE, FAILURE_THRESHOLD,
-                OPEN_DURATION_MICROS);
+                openDurationMicros);
     }
 
     public static FailFastCircuitBreaker failFast() {
+        return failFast(OPEN_DURATION_MICROS);
+    }
+
+    public static FailFastCircuitBreaker failFast(long openDurationMicros) {
         return new FailFastCircuitBreaker(MAX_RETRIES, RETRY_DELAY_MICROS, WINDOW_SIZE, FAILURE_THRESHOLD,
-                OPEN_DURATION_MICROS);
+                openDurationMicros);
     }
 }
