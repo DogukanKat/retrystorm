@@ -106,6 +106,19 @@ fail-fast a 10 s cooldown lowers the recovery oscillation but a 60 s cooldown
 trips during overload stays open to the horizon, so recovery goodput collapses to
 near zero instead of oscillating.
 
+## Open-breaker trace
+
+```bash
+cd sim && ./gradlew run --args="analyze-open-trace"
+```
+
+Output: `results/open_trace.csv`.
+Columns: `seed,time_s,open_count`.
+Runs the 100-client fail-fast configuration (2 s cooldown) and samples, every
+100 ms over the 60 s run, how many of the 100 breakers are open, for seeds 42-46.
+A recovery-window trace that swings in waves indicates synchronized trip-and-probe
+cycles; one that hovers around a steady mean indicates independent flapping.
+
 ## Baseline-utilisation phase map
 
 ```bash

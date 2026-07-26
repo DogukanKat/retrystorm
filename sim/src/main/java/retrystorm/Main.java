@@ -7,6 +7,8 @@ import java.util.List;
 
 import retrystorm.analysis.BreakerStateAnalysis;
 import retrystorm.analysis.BreakerStateRow;
+import retrystorm.analysis.OpenTraceAnalysis;
+import retrystorm.analysis.OpenTraceRow;
 import retrystorm.analysis.SpikeAnalysis;
 import retrystorm.analysis.SpikeRow;
 import retrystorm.metrics.BucketRow;
@@ -50,9 +52,11 @@ public final class Main {
             case "analyze-spikes" -> runSpikeAnalysis();
             case "analyze-breaker-state" -> runBreakerStateAnalysis();
             case "analyze-cooldown" -> runCooldownSweep();
+            case "analyze-open-trace" -> runOpenTrace();
             default -> {
                 System.err.println("unknown mode: " + mode + " (expected 'canonical', 'validate', 'sweep', "
-                        + "'herd', 'phase', 'analyze-spikes', 'analyze-breaker-state' or 'analyze-cooldown')");
+                        + "'herd', 'phase', 'analyze-spikes', 'analyze-breaker-state', 'analyze-cooldown' "
+                        + "or 'analyze-open-trace')");
                 System.exit(2);
             }
         }
@@ -120,5 +124,12 @@ public final class Main {
                 MultiSeedValidation.DEFAULT_SEEDS);
         CooldownSweep.writeCsv(RESULTS_DIR.resolve("cooldown.csv"), rows);
         System.out.println("wrote cooldown.csv (" + rows.size() + " rows)");
+    }
+
+    private static void runOpenTrace() throws IOException {
+        List<OpenTraceRow> rows = OpenTraceAnalysis.run(
+                CanonicalExperiment.scenario(), MultiSeedValidation.DEFAULT_SEEDS);
+        OpenTraceAnalysis.writeCsv(RESULTS_DIR.resolve("open_trace.csv"), rows);
+        System.out.println("wrote open_trace.csv (" + rows.size() + " rows)");
     }
 }
