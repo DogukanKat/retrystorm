@@ -15,27 +15,35 @@ This is called metastable failure. Background reading:
 
 ## What it simulates
 
-Clients and servers are generic. Nothing in the model is tied to a specific domain.
+Clients and a server are generic. Nothing in the model is tied to a specific domain.
 
-You wire them into a topology in code, not in a config file: fan-in, fan-out or chains. Each client sends requests at some rate and has its own retry policy. Each server has a fixed capacity and a bounded queue, and rejects new work once the queue is full.
+The server has a fixed number of workers and a bounded queue, and rejects new work once the queue is full. Each client sends requests as a Poisson process, puts a timeout on every attempt, and on failure consults its retry policy, up to a hard attempt cap. The experiments point many clients at one server (fan-in). Scenarios are written in code, not a config file.
 
-Each run records goodput, offered load, queue depth and p99 latency. That is what makes the policies comparable under the same overload.
+Each run records goodput, offered load, queue depth and p99 latency per second. That is what makes the policies comparable under the same overload.
 
-## Status
+## Results
 
-Work in progress.
+The canonical experiment holds capacity, queue bound and load fixed and swaps one retry policy at a time. A ten-second arrival spike at t=20–30s triggers the storm; the run continues to t=60s.
 
-- **Done:** the engine (`Event`, `Simulator`). Integer microsecond clock, one seeded `Random`, and events at the same instant run in the order they were scheduled.
-- **Done:** the server side (`Request`, `Server`, `ExponentialServiceTime`). Fixed worker count, bounded FIFO queue, and work is rejected once the queue is full.
-- **Done:** the client side (`Client`, `RateSchedule`). Poisson arrivals, a timeout on every attempt, and a hard attempt cap.
-- **Done:** all six policies — `NoRetry`, `FixedRetry`, `ExponentialBackoff`, `ExponentialBackoffWithJitter`, `TokenBucketRetry` and `CircuitBreaker`. Stateful ones recover through `onSuccess`/`onFailure`, which the client reports as requests settle.
-- **Done:** metrics collection and CSV output (`MetricsCollector`, `CsvWriter`). Per-second buckets track offered load, goodput, rejections, timeouts, retries, queue depth and success-latency percentiles.
-- **Done:** the scenario runner and the canonical overload experiment (`Scenario`, `ScenarioRunner`, `CanonicalExperiment`). `retrystorm.Main` runs all six policies against the same scenario and seed and writes one CSV per policy plus a combined CSV to `results/`.
-- **Missing:** the plotting script and a written-up chart. The collapse-versus-recovery result is visible in the CSVs but not yet drawn.
+![Goodput over time by policy](docs/goodput_over_time.png)
 
-## Planned experiments
+Every policy loses goodput during the spike (shaded). After it lifts, three stay collapsed at zero — fixed retry, exponential backoff, and backoff with jitter — while no-retry, the token bucket and the circuit breaker recover. Backoff and jitter alone do not prevent the collapse at this load; only capping the *volume* of retries does.
 
-Same topology, same load, one policy at a time:
+Two boundaries qualify that headline.
+
+![Recovery instability vs utilisation](docs/phase_instability.png)
+
+A circuit breaker helps only at moderate utilisation. As the baseline load approaches capacity it grows unstable, and by 0.9 it depresses the baseline goodput that no-retry still carries (`docs/phase_collapse.png`). At 0.9 the breakers trip in steady state, before any overload exists.
+
+![Recovery instability vs client count](docs/herd_instability.png)
+
+Splitting one breaker into many independent per-client breakers makes a fail-fast breaker less stable in recovery as the count rises, while a retry-only breaker stays steady.
+
+The client-count sweep (`results/sweep.csv`) shows the matching boundary for backoff: it recovers with few clients and collapses with many. Latency over time is in `docs/p99_over_time.png`; the recovery-window p99 spikes come from the ~1% of requests that succeed on a retry.
+
+Every chart is reproducible from the commands in [EXPERIMENTS.md](EXPERIMENTS.md).
+
+## Retry policies
 
 - **No retry** — the baseline.
 - **Fixed retry** — retry N times, same delay every time.
@@ -49,38 +57,23 @@ Same topology, same load, one policy at a time:
 - `sim/` — the Java 21 simulation (Gradle project)
 - `plots/` — Python plotting scripts
 - `results/` — CSV output, git-ignored
+- `docs/` — rendered charts
 
 ## Running
 
-Run the canonical experiment. It writes one CSV per policy plus `combined.csv` into `results/`:
+The simulation writes CSVs into `results/`. The first argument picks the mode; `canonical` is the default:
 
 ```bash
-cd sim && ./gradlew run
+cd sim && ./gradlew run                            # per-policy time series + combined.csv
+cd sim && ./gradlew run --args="validate"          # collapse vs recovery across 5 seeds
+cd sim && ./gradlew run --args="sweep"             # backoff vs token bucket by client count
+cd sim && ./gradlew run --args="herd"              # one breaker split into many per-client breakers
+cd sim && ./gradlew run --args="phase"             # breaker behaviour across baseline utilisation
+cd sim && ./gradlew run --args="analyze-spikes"    # recovery p99 split by attempt count
+cd sim && ./gradlew run --args="analyze-breaker-state"  # baseline breaker tripping by utilisation
 ```
 
-Re-run it across several seeds and write a per-seed summary to `results/validation.csv`, to check the result is not a fluke of one seed:
-
-```bash
-cd sim && ./gradlew run --args="validate"
-```
-
-Sweep the client count (total load) for backoff-with-jitter and the token bucket, writing `results/sweep.csv`. This shows where backoff stops being enough: it recovers with few clients and collapses with many.
-
-```bash
-cd sim && ./gradlew run --args="sweep"
-```
-
-Split one circuit breaker into many independent ones (per client) at fixed total load, writing `results/herd.csv`. A fail-fast breaker that sheds all load grows less stable in recovery as the number of breakers rises; a retry-only breaker stays steady.
-
-```bash
-cd sim && ./gradlew run --args="herd"
-```
-
-Sweep baseline utilisation for no-retry against the two breakers, writing `results/phase.csv`. This maps where a breaker stops helping: it recovers cleanly at low utilisation but, as the baseline nears capacity, grows unstable and eventually collapses the baseline that no-retry still carries.
-
-```bash
-cd sim && ./gradlew run --args="phase"
-```
+Parameters and output columns for each mode are documented in [EXPERIMENTS.md](EXPERIMENTS.md).
 
 Tests:
 
@@ -88,8 +81,12 @@ Tests:
 cd sim && ./gradlew test
 ```
 
-Plots. `plot_results.py` is still a stub and raises `NotImplementedError`, and there is no CSV to plot yet. You can install the dependencies already:
+Charts render from the CSVs into `docs/`. Install the dependencies, then run the subcommand for the CSV you produced:
 
 ```bash
-cd plots && pip install -r requirements.txt
+cd plots
+pip install -r requirements.txt
+python plot_results.py canonical   # goodput_over_time.png, p99_over_time.png
+python plot_results.py herd        # herd_instability.png
+python plot_results.py phase       # phase_instability.png, phase_collapse.png
 ```
