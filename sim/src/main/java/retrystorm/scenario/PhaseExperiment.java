@@ -24,7 +24,8 @@ import retrystorm.policy.RetryPolicy;
  */
 public final class PhaseExperiment {
 
-    public static final List<Double> DEFAULT_UTILISATIONS = List.of(0.5, 0.6, 0.7, 0.8, 0.9);
+    public static final List<Double> DEFAULT_UTILISATIONS =
+            List.of(0.5, 0.6, 0.7, 0.8, 0.82, 0.85, 0.88, 0.9, 0.92);
     public static final int HERD_CLIENTS = 100;
 
     private static final String HEADER =

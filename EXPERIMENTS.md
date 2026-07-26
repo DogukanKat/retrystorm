@@ -97,7 +97,7 @@ cd sim && ./gradlew run --args="phase"
 
 Output: `results/phase.csv`.
 Columns: `policy,utilisation,seed,baseline_goodput,recovery_goodput,recovery_instability`.
-Sweeps baseline utilisation 0.5, 0.6, 0.7, 0.8, 0.9 (baseline arrival rate as a
+Sweeps baseline utilisation 0.5, 0.6, 0.7, 0.8, 0.82, 0.85, 0.88, 0.9, 0.92 (baseline arrival rate as a
 fraction of the 1000 req/s capacity) with the overload spike held at 2500 req/s,
 over seeds 42–46, at 100 independent clients. Policies: `no-retry`, `retry-only`
 breaker, `fail-fast` breaker, and `fixed-retry` (plain retry, no breaker, as a
@@ -137,7 +137,7 @@ cd sim && ./gradlew run --args="analyze-breaker-state"
 Output: `results/breaker_state.csv`.
 Columns: `breaker,utilisation,seed,baseline_tripped_fraction`.
 Reruns the retry-only and fail-fast breakers with 100 independent clients at
-utilisations 0.5, 0.6, 0.7, 0.8, 0.9 over seeds 42-46, and samples every
+utilisations 0.5, 0.6, 0.7, 0.8, 0.82, 0.85, 0.88, 0.9, 0.92 over seeds 42-46, and samples every
 breaker's open/half-open state every 10 ms across the baseline window (0-20 s,
 before any overload). Reports the fraction of breaker-samples spent tripped.
 Demonstrated that below 0.9 utilisation both breakers stay closed for the whole
