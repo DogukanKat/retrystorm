@@ -69,3 +69,35 @@ is held fixed (6 req/s baseline, 25 req/s overload per client), so total load sc
 the count; server capacity stays at 1000 req/s. Policies: `backoff-jitter`, `token-bucket`.
 Recovery window 30–60 s, seed 42.
 Shows recovery-window goodput for the two policies as the client count varies.
+
+## Distributed circuit-breaker herd
+
+```bash
+cd sim && ./gradlew run --args="herd"
+```
+
+Output: `results/herd.csv`.
+Columns: `breaker,client_count,seed,recovery_goodput,recovery_instability`.
+Runs a retry-only breaker and a fail-fast breaker, each split across
+1, 10, 50, 100, 200 independent clients at fixed total load, over seeds 42–46.
+Server capacity 1000 req/s; breaker window 50, trip at 0.5, 2 s cooldown.
+Recovery instability is the standard deviation of per-second goodput in the
+30–60 s window. Shows recovery goodput and its instability per breaker, client
+count and seed.
+
+## Baseline-utilisation phase map
+
+```bash
+cd sim && ./gradlew run --args="phase"
+```
+
+Output: `results/phase.csv`.
+Columns: `policy,utilisation,seed,baseline_goodput,recovery_goodput,recovery_instability`.
+Sweeps baseline utilisation 0.5, 0.6, 0.7, 0.8, 0.9 (baseline arrival rate as a
+fraction of the 1000 req/s capacity) with the overload spike held at 2500 req/s,
+over seeds 42–46, at 100 independent clients. Policies: `no-retry`, `retry-only`
+breaker, `fail-fast` breaker. Baseline window 0–20 s, recovery window 30–60 s.
+Shows each policy's baseline and recovery goodput and recovery instability as the
+baseline load approaches capacity.
+
+

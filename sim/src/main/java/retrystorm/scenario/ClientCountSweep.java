@@ -41,8 +41,8 @@ public final class ClientCountSweep {
                 rows.add(new SweepRow(
                         clients,
                         policy.name(),
-                        meanGoodput(metrics, 0, scaled.spikeStartMicros()),
-                        meanGoodput(metrics, scaled.spikeEndMicros(), scaled.horizonMicros())));
+                        WindowStats.meanGoodput(metrics, 0, scaled.spikeStartMicros()),
+                        WindowStats.meanGoodput(metrics, scaled.spikeEndMicros(), scaled.horizonMicros())));
             }
         }
         return rows;
@@ -69,17 +69,5 @@ public final class ClientCountSweep {
         return CanonicalExperiment.policies().stream()
                 .filter(policy -> SWEPT_POLICIES.contains(policy.name()))
                 .toList();
-    }
-
-    private static double meanGoodput(List<BucketRow> rows, long fromMicros, long toMicros) {
-        long sum = 0;
-        int count = 0;
-        for (BucketRow row : rows) {
-            if (row.bucketStartMicros() >= fromMicros && row.bucketStartMicros() < toMicros) {
-                sum += row.goodput();
-                count++;
-            }
-        }
-        return count == 0 ? 0.0 : (double) sum / count;
     }
 }

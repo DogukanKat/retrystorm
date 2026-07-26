@@ -36,10 +36,10 @@ public final class MultiSeedValidation {
                 rows.add(new ValidationRow(
                         policy.name(),
                         seed,
-                        meanGoodput(metrics, 0, scenario.spikeStartMicros()),
-                        meanGoodput(metrics, scenario.spikeStartMicros(), scenario.spikeEndMicros()),
-                        meanGoodput(metrics, scenario.spikeEndMicros(), scenario.horizonMicros()),
-                        sumRetries(metrics, scenario.spikeStartMicros(), scenario.spikeEndMicros())));
+                        WindowStats.meanGoodput(metrics, 0, scenario.spikeStartMicros()),
+                        WindowStats.meanGoodput(metrics, scenario.spikeStartMicros(), scenario.spikeEndMicros()),
+                        WindowStats.meanGoodput(metrics, scenario.spikeEndMicros(), scenario.horizonMicros()),
+                        WindowStats.sumRetries(metrics, scenario.spikeStartMicros(), scenario.spikeEndMicros())));
             }
         }
         return rows;
@@ -61,27 +61,5 @@ public final class MultiSeedValidation {
                 writer.write('\n');
             }
         }
-    }
-
-    private static double meanGoodput(List<BucketRow> rows, long fromMicros, long toMicros) {
-        long sum = 0;
-        int count = 0;
-        for (BucketRow row : rows) {
-            if (row.bucketStartMicros() >= fromMicros && row.bucketStartMicros() < toMicros) {
-                sum += row.goodput();
-                count++;
-            }
-        }
-        return count == 0 ? 0.0 : (double) sum / count;
-    }
-
-    private static long sumRetries(List<BucketRow> rows, long fromMicros, long toMicros) {
-        long sum = 0;
-        for (BucketRow row : rows) {
-            if (row.bucketStartMicros() >= fromMicros && row.bucketStartMicros() < toMicros) {
-                sum += row.retries();
-            }
-        }
-        return sum;
     }
 }

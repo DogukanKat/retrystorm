@@ -57,6 +57,11 @@ public final class Client {
     Request send() {
         Request request = new Request(requestsCreated++, sim.now());
         metrics.recordArrival(sim.now());
+        if (!policy.admit(sim)) {
+            metrics.recordRejection(sim.now());
+            request.settle(Outcome.REJECTED);
+            return request;
+        }
         sendAttempt(request);
         return request;
     }

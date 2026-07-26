@@ -70,6 +70,18 @@ Sweep the client count (total load) for backoff-with-jitter and the token bucket
 cd sim && ./gradlew run --args="sweep"
 ```
 
+Split one circuit breaker into many independent ones (per client) at fixed total load, writing `results/herd.csv`. A fail-fast breaker that sheds all load grows less stable in recovery as the number of breakers rises; a retry-only breaker stays steady.
+
+```bash
+cd sim && ./gradlew run --args="herd"
+```
+
+Sweep baseline utilisation for no-retry against the two breakers, writing `results/phase.csv`. This maps where a breaker stops helping: it recovers cleanly at low utilisation but, as the baseline nears capacity, grows unstable and eventually collapses the baseline that no-retry still carries.
+
+```bash
+cd sim && ./gradlew run --args="phase"
+```
+
 Tests:
 
 ```bash

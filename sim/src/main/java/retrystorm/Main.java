@@ -11,7 +11,11 @@ import retrystorm.metrics.RunResult;
 import retrystorm.scenario.CanonicalExperiment;
 import retrystorm.scenario.CanonicalExperiment.NamedPolicy;
 import retrystorm.scenario.ClientCountSweep;
+import retrystorm.scenario.HerdExperiment;
+import retrystorm.scenario.HerdRow;
 import retrystorm.scenario.MultiSeedValidation;
+import retrystorm.scenario.PhaseExperiment;
+import retrystorm.scenario.PhaseRow;
 import retrystorm.scenario.Scenario;
 import retrystorm.scenario.ScenarioRunner;
 import retrystorm.scenario.SweepRow;
@@ -35,8 +39,11 @@ public final class Main {
             case "canonical" -> runCanonical();
             case "validate" -> runValidation();
             case "sweep" -> runSweep();
+            case "herd" -> runHerd();
+            case "phase" -> runPhase();
             default -> {
-                System.err.println("unknown mode: " + mode + " (expected 'canonical', 'validate' or 'sweep')");
+                System.err.println("unknown mode: " + mode
+                        + " (expected 'canonical', 'validate', 'sweep', 'herd' or 'phase')");
                 System.exit(2);
             }
         }
@@ -69,5 +76,19 @@ public final class Main {
                 CanonicalExperiment.scenario(), ClientCountSweep.DEFAULT_CLIENT_COUNTS);
         ClientCountSweep.writeCsv(RESULTS_DIR.resolve("sweep.csv"), rows);
         System.out.println("wrote sweep.csv (" + rows.size() + " rows)");
+    }
+
+    private static void runHerd() throws IOException {
+        List<HerdRow> rows = HerdExperiment.run(CanonicalExperiment.scenario(),
+                HerdExperiment.DEFAULT_CLIENT_COUNTS, MultiSeedValidation.DEFAULT_SEEDS);
+        HerdExperiment.writeCsv(RESULTS_DIR.resolve("herd.csv"), rows);
+        System.out.println("wrote herd.csv (" + rows.size() + " rows)");
+    }
+
+    private static void runPhase() throws IOException {
+        List<PhaseRow> rows = PhaseExperiment.run(CanonicalExperiment.scenario(),
+                PhaseExperiment.DEFAULT_UTILISATIONS, MultiSeedValidation.DEFAULT_SEEDS);
+        PhaseExperiment.writeCsv(RESULTS_DIR.resolve("phase.csv"), rows);
+        System.out.println("wrote phase.csv (" + rows.size() + " rows)");
     }
 }

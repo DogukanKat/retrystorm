@@ -12,6 +12,14 @@ public interface RetryPolicy {
      */
     RetryDecision decide(int attempt, FailureKind failureKind, Simulator sim);
 
+    /**
+     * Whether a new request may be sent at all. Fail-fast policies shed load
+     * here when they are tripped; by default every request is admitted.
+     */
+    default boolean admit(Simulator sim) {
+        return true;
+    }
+
     /** Reports that a request finally succeeded. Stateful budgets recover here. */
     default void onSuccess() {
     }
