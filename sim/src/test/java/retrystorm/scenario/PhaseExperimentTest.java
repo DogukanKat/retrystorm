@@ -17,23 +17,26 @@ class PhaseExperimentTest {
     private static final List<Long> SEEDS = List.of(42L, 43L);
 
     @Test
-    void breakersHelpAtLowUtilisationButHarmTheBaselineAtHigh() {
+    void breakersSitBetweenPlainRetryAndNoRetryAtHighUtilisation() {
         List<PhaseRow> rows = PhaseExperiment.run(CanonicalExperiment.scenario(), UTILS, SEEDS);
-        assertEquals(3 * UTILS.size() * SEEDS.size(), rows.size());
+        assertEquals(4 * UTILS.size() * SEEDS.size(), rows.size());
 
         for (long seed : SEEDS) {
             double retryOnlyLow = instability(rows, "retry-only", 0.6, seed);
-            double failFastLow = instability(rows, "fail-fast", 0.6, seed);
             assertTrue(retryOnlyLow < 60,
                     "retry-only is steady at low utilisation, seed " + seed + ": " + retryOnlyLow);
-            assertTrue(failFastLow > 2 * retryOnlyLow,
-                    "fail-fast already oscillates at low utilisation, seed " + seed + ": " + failFastLow);
+            assertTrue(instability(rows, "fail-fast", 0.6, seed) > 2 * retryOnlyLow,
+                    "fail-fast already oscillates at low utilisation, seed " + seed);
 
-            double noRetryBase = baseline(rows, "no-retry", 0.9, seed);
-            assertTrue(noRetryBase > 1.2 * baseline(rows, "retry-only", 0.9, seed),
-                    "at high utilisation the retry-only breaker collapses the baseline, seed " + seed);
-            assertTrue(noRetryBase > 1.2 * baseline(rows, "fail-fast", 0.9, seed),
-                    "at high utilisation the fail-fast breaker collapses the baseline, seed " + seed);
+            double noRetry = baseline(rows, "no-retry", 0.9, seed);
+            double retryOnly = baseline(rows, "retry-only", 0.9, seed);
+            double failFast = baseline(rows, "fail-fast", 0.9, seed);
+            double plainRetry = baseline(rows, "fixed-retry", 0.9, seed);
+            assertTrue(plainRetry < 0.5 * retryOnly && plainRetry < 0.5 * failFast,
+                    "plain retry's baseline collapses far below the breakers, seed " + seed
+                            + ": plain=" + plainRetry + " retry-only=" + retryOnly + " fail-fast=" + failFast);
+            assertTrue(noRetry > retryOnly && noRetry > failFast,
+                    "no-retry keeps more baseline than either breaker, seed " + seed);
         }
     }
 

@@ -31,7 +31,7 @@ Retry policies (shared retry delay 25 ms, max backoff 1 s, max 5 retries):
 | `fixed-retry` | 5 retries, 25 ms delay |
 | `exponential-backoff` | 5 retries, 25 ms base, 1 s cap |
 | `backoff-jitter` | 5 retries, 25 ms base, 1 s cap, full jitter |
-| `token-bucket` | 5 retries, 25 ms delay, capacity 100, cost 1/retry, refill 0.1/success |
+| `token-bucket` | per-client budget: 5 retries, 25 ms delay, capacity 100, cost 1/retry, refill 0.1/success |
 | `circuit-breaker` | 5 retries, 25 ms delay, window 50, trip at 0.5 failure rate, 2 s cooldown |
 
 ## Per-policy time series
@@ -56,7 +56,7 @@ Columns: `policy,seed,baseline_goodput,overload_goodput,recovery_goodput,overloa
 Seeds: 42, 43, 44, 45, 46. Windows: baseline 0–20 s, overload 20–30 s, recovery 30–60 s.
 Shows mean goodput per window and overload-window retry totals for every policy on every seed.
 
-## Client-count sweep
+## Load sweep
 
 ```bash
 cd sim && ./gradlew run --args="sweep"
@@ -64,11 +64,15 @@ cd sim && ./gradlew run --args="sweep"
 
 Output: `results/sweep.csv`.
 Columns: `client_count,policy,baseline_goodput,recovery_goodput`.
-Client counts: 25, 50, 75, 100, where 100 is the canonical load. Offered load per client
-is held fixed (6 req/s baseline, 25 req/s overload per client), so total load scales with
-the count; server capacity stays at 1000 req/s. Policies: `backoff-jitter`, `token-bucket`.
-Recovery window 30–60 s, seed 42.
-Shows recovery-window goodput for the two policies as the client count varies.
+A single open arrival source scaled to the aggregate demand of 25, 50, 75 and 100
+independent callers, each offering 6 req/s at baseline and 25 req/s during overload, where
+100 reproduces the canonical load; server capacity stays at 1000 req/s. Policies:
+`backoff-jitter`, `token-bucket`. Recovery window 30–60 s, seed 42. For the stateless
+backoff-jitter policy this is statistically identical to that many real clients
+(superposition of Poisson streams, per-request retry state); the token bucket, by
+contrast, is one shared budget at every point of the sweep. The CSV column `client_count`
+is kept for compatibility and means "equivalent caller count".
+Shows recovery-window goodput for the two policies as the aggregate demand varies.
 
 ## Distributed circuit-breaker herd
 
@@ -96,9 +100,13 @@ Columns: `policy,utilisation,seed,baseline_goodput,recovery_goodput,recovery_ins
 Sweeps baseline utilisation 0.5, 0.6, 0.7, 0.8, 0.9 (baseline arrival rate as a
 fraction of the 1000 req/s capacity) with the overload spike held at 2500 req/s,
 over seeds 42–46, at 100 independent clients. Policies: `no-retry`, `retry-only`
-breaker, `fail-fast` breaker. Baseline window 0–20 s, recovery window 30–60 s.
+breaker, `fail-fast` breaker, and `fixed-retry` (plain retry, no breaker, as a
+control). Baseline window 0–20 s, recovery window 30–60 s.
 Shows each policy's baseline and recovery goodput and recovery instability as the
-baseline load approaches capacity.
+baseline load approaches capacity. The `fixed-retry` control shows that at 0.9 the
+breakers' depressed baseline is retry-amplification damage they partly prevent, not
+a cost they add: plain retry's baseline collapses to ~100 there, far below the
+breakers' ~525–543.
 
 ## Recovery-window spike analysis
 

@@ -39,7 +39,7 @@ A circuit breaker helps only at moderate utilisation. As the baseline load appro
 
 Splitting one breaker into many independent per-client breakers makes a fail-fast breaker less stable in recovery as the count rises, while a retry-only breaker stays steady.
 
-The client-count sweep (`results/sweep.csv`) shows the matching boundary for backoff: it recovers with few clients and collapses with many. Latency over time is in `docs/p99_over_time.png`; the recovery-window p99 spikes come from the ~1% of requests that succeed on a retry.
+The load sweep (`results/sweep.csv`) shows the matching boundary for backoff: it recovers at low aggregate demand and collapses at high (the demand is one scaled arrival stream, equivalent to that many independent callers for a stateless policy). Latency over time is in `docs/p99_over_time.png`; the recovery-window p99 spikes come from the ~1% of requests that succeed on a retry.
 
 Every chart is reproducible from the commands in [EXPERIMENTS.md](EXPERIMENTS.md).
 
@@ -66,7 +66,7 @@ The simulation writes CSVs into `results/`. The first argument picks the mode; `
 ```bash
 cd sim && ./gradlew run                            # per-policy time series + combined.csv
 cd sim && ./gradlew run --args="validate"          # collapse vs recovery across 5 seeds
-cd sim && ./gradlew run --args="sweep"             # backoff vs token bucket by client count
+cd sim && ./gradlew run --args="sweep"             # backoff vs token bucket by aggregate load
 cd sim && ./gradlew run --args="herd"              # one breaker split into many per-client breakers
 cd sim && ./gradlew run --args="phase"             # breaker behaviour across baseline utilisation
 cd sim && ./gradlew run --args="analyze-spikes"    # recovery p99 split by attempt count

@@ -10,6 +10,7 @@ import java.util.Locale;
 import java.util.function.Supplier;
 
 import retrystorm.metrics.BucketRow;
+import retrystorm.policy.FixedRetry;
 import retrystorm.policy.NoRetry;
 import retrystorm.policy.RetryPolicy;
 
@@ -84,6 +85,7 @@ public final class PhaseExperiment {
         return List.of(
                 new NamedPolicy("no-retry", NoRetry::new),
                 new NamedPolicy("retry-only", Breakers::retryOnly),
-                new NamedPolicy("fail-fast", Breakers::failFast));
+                new NamedPolicy("fail-fast", Breakers::failFast),
+                new NamedPolicy("fixed-retry", () -> new FixedRetry(Breakers.MAX_RETRIES, Breakers.RETRY_DELAY_MICROS)));
     }
 }
