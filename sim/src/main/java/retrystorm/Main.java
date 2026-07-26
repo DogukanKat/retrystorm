@@ -5,6 +5,10 @@ import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 
+import retrystorm.analysis.BreakerStateAnalysis;
+import retrystorm.analysis.BreakerStateRow;
+import retrystorm.analysis.SpikeAnalysis;
+import retrystorm.analysis.SpikeRow;
 import retrystorm.metrics.BucketRow;
 import retrystorm.metrics.CsvWriter;
 import retrystorm.metrics.RunResult;
@@ -41,9 +45,11 @@ public final class Main {
             case "sweep" -> runSweep();
             case "herd" -> runHerd();
             case "phase" -> runPhase();
+            case "analyze-spikes" -> runSpikeAnalysis();
+            case "analyze-breaker-state" -> runBreakerStateAnalysis();
             default -> {
-                System.err.println("unknown mode: " + mode
-                        + " (expected 'canonical', 'validate', 'sweep', 'herd' or 'phase')");
+                System.err.println("unknown mode: " + mode + " (expected 'canonical', 'validate', "
+                        + "'sweep', 'herd', 'phase', 'analyze-spikes' or 'analyze-breaker-state')");
                 System.exit(2);
             }
         }
@@ -90,5 +96,18 @@ public final class Main {
                 PhaseExperiment.DEFAULT_UTILISATIONS, MultiSeedValidation.DEFAULT_SEEDS);
         PhaseExperiment.writeCsv(RESULTS_DIR.resolve("phase.csv"), rows);
         System.out.println("wrote phase.csv (" + rows.size() + " rows)");
+    }
+
+    private static void runSpikeAnalysis() throws IOException {
+        List<SpikeRow> rows = SpikeAnalysis.run(CanonicalExperiment.scenario());
+        SpikeAnalysis.writeCsv(RESULTS_DIR.resolve("spike_analysis.csv"), rows);
+        System.out.println("wrote spike_analysis.csv (" + rows.size() + " rows)");
+    }
+
+    private static void runBreakerStateAnalysis() throws IOException {
+        List<BreakerStateRow> rows = BreakerStateAnalysis.run(CanonicalExperiment.scenario(),
+                PhaseExperiment.DEFAULT_UTILISATIONS, MultiSeedValidation.DEFAULT_SEEDS);
+        BreakerStateAnalysis.writeCsv(RESULTS_DIR.resolve("breaker_state.csv"), rows);
+        System.out.println("wrote breaker_state.csv (" + rows.size() + " rows)");
     }
 }

@@ -3,8 +3,8 @@ package retrystorm.scenario;
 import retrystorm.policy.CircuitBreaker;
 import retrystorm.policy.FailFastCircuitBreaker;
 
-/** Shared breaker configuration for the experiments that compare breaker kinds. */
-final class Breakers {
+/** Shared breaker configuration for the experiments and analyses that compare breaker kinds. */
+public final class Breakers {
 
     static final int MAX_RETRIES = 5;
     static final long RETRY_DELAY_MICROS = 25_000;
@@ -15,12 +15,12 @@ final class Breakers {
     private Breakers() {
     }
 
-    static CircuitBreaker retryOnly() {
+    public static CircuitBreaker retryOnly() {
         return new CircuitBreaker(MAX_RETRIES, RETRY_DELAY_MICROS, WINDOW_SIZE, FAILURE_THRESHOLD,
                 OPEN_DURATION_MICROS);
     }
 
-    static FailFastCircuitBreaker failFast() {
+    public static FailFastCircuitBreaker failFast() {
         return new FailFastCircuitBreaker(MAX_RETRIES, RETRY_DELAY_MICROS, WINDOW_SIZE, FAILURE_THRESHOLD,
                 OPEN_DURATION_MICROS);
     }

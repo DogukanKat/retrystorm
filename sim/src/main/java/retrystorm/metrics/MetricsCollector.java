@@ -47,6 +47,15 @@ public final class MetricsCollector {
         return bucketCount;
     }
 
+    /**
+     * Read-only view of the success latencies recorded in {@code bucketIndex},
+     * for offline analysis only. This is not part of the metrics contract:
+     * analysis code may depend on it, simulation code must not.
+     */
+    public List<Long> latenciesMicros(int bucketIndex) {
+        return List.copyOf(latencyMicros.get(bucketIndex));
+    }
+
     public void recordArrival(long nowMicros) {
         offered[bucketOf(nowMicros)]++;
     }

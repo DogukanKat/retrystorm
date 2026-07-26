@@ -100,4 +100,40 @@ breaker, `fail-fast` breaker. Baseline window 0–20 s, recovery window 30–60 
 Shows each policy's baseline and recovery goodput and recovery instability as the
 baseline load approaches capacity.
 
+## Recovery-window spike analysis
+
+```bash
+cd sim && ./gradlew run --args="analyze-spikes"
+```
+
+Output: `results/spike_analysis.csv`.
+Columns: `policy,time_s,successes,multi_attempt,p99_all_ms,p99_first_ms,p99_multi_ms`.
+Reruns the recovering policies (no-retry, token-bucket, circuit-breaker) on the
+canonical scenario and, for each recovery bucket, splits success latencies at the
+50 ms per-attempt timeout: under it a success completed on its first attempt, at
+or above it the request timed out and completed on a retry (exact while recovery
+rejections are ~0). Reports p99 over all successes, first-attempt only, and
+multi-attempt only, per bucket. Empty p99 fields mean that subset had no
+successes in the bucket.
+Demonstrated that the recovery-window p99 spikes are produced by the ~1% of
+successes that complete on a retry (timeout + backoff + a second service round,
+about 2-2.7x a first-attempt latency); first-attempt-only p99 matches no-retry
+exactly.
+
+## Baseline breaker-tripping analysis
+
+```bash
+cd sim && ./gradlew run --args="analyze-breaker-state"
+```
+
+Output: `results/breaker_state.csv`.
+Columns: `breaker,utilisation,seed,baseline_tripped_fraction`.
+Reruns the retry-only and fail-fast breakers with 100 independent clients at
+utilisations 0.5, 0.6, 0.7, 0.8, 0.9 over seeds 42-46, and samples every
+breaker's open/half-open state every 10 ms across the baseline window (0-20 s,
+before any overload). Reports the fraction of breaker-samples spent tripped.
+Demonstrated that below 0.9 utilisation both breakers stay closed for the whole
+baseline (0%), while at 0.9 they trip in steady state (fail-fast ~30%, retry-only
+~73%), accounting for the depressed baseline goodput at high utilisation.
+
 

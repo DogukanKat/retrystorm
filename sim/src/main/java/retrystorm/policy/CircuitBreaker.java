@@ -59,6 +59,15 @@ public final class CircuitBreaker implements RetryPolicy {
         this.failures = new boolean[windowSize];
     }
 
+    /**
+     * Whether the breaker is currently open or half-open, for offline analysis
+     * only. This reflects the state as of the last decision and is not part of
+     * the policy contract: analysis code may read it, simulation code must not.
+     */
+    public boolean isTripped() {
+        return state != State.CLOSED;
+    }
+
     @Override
     public RetryDecision decide(int attempt, FailureKind failureKind, Simulator sim) {
         long now = sim.now();
