@@ -11,6 +11,8 @@ import java.util.List;
 import org.junit.jupiter.api.Test;
 
 import retrystorm.engine.Simulator;
+import retrystorm.metrics.BucketRow;
+import retrystorm.metrics.MetricsCollector;
 import retrystorm.policy.FailureKind;
 import retrystorm.policy.FixedRetry;
 import retrystorm.policy.NoRetry;
@@ -31,14 +33,17 @@ class ClientTest {
         Simulator sim = new Simulator(1L);
         Server server = server(sim, 1, 0);
         NoRetry policy = new NoRetry();
+        MetricsCollector metrics = metrics();
         assertThrows(IllegalArgumentException.class,
-                () -> new Client(sim, server, policy, IDLE, 0, 1));
+                () -> new Client(sim, server, policy, metrics, IDLE, 0, 1));
         assertThrows(IllegalArgumentException.class,
-                () -> new Client(sim, server, policy, IDLE, 1_000, 0));
+                () -> new Client(sim, server, policy, metrics, IDLE, 1_000, 0));
         assertThrows(NullPointerException.class,
-                () -> new Client(sim, server, null, IDLE, 1_000, 1));
+                () -> new Client(sim, server, null, metrics, IDLE, 1_000, 1));
         assertThrows(NullPointerException.class,
-                () -> new Client(null, server, policy, IDLE, 1_000, 1));
+                () -> new Client(sim, server, policy, null, IDLE, 1_000, 1));
+        assertThrows(NullPointerException.class,
+                () -> new Client(null, server, policy, metrics, IDLE, 1_000, 1));
     }
 
     @Test
@@ -245,6 +250,59 @@ class ClientTest {
     }
 
     @Test
+    void recordsAnArrivalForEveryRequest() {
+        Simulator sim = new Simulator(1L);
+        MetricsCollector metrics = new MetricsCollector(1_000_000, 1_000_000);
+        Client client = new Client(sim, server(sim, 1, 0), new NoRetry(), metrics, IDLE,
+                GENEROUS_TIMEOUT_MICROS, 1);
+        client.send();
+        client.send();
+        assertEquals(2, metrics.snapshot().get(0).offered());
+    }
+
+    @Test
+    void recordsSuccessWithLatencyMeasuredFromCreation() {
+        Simulator sim = new Simulator(1L);
+        MetricsCollector metrics = new MetricsCollector(1_000_000, 1_000_000);
+        Client client = new Client(sim, server(sim, 1, 0), new NoRetry(), metrics, IDLE,
+                GENEROUS_TIMEOUT_MICROS, 1);
+        client.send();
+        sim.runToCompletion();
+        BucketRow row = metrics.snapshot().get(0);
+        assertEquals(1, row.goodput());
+        assertTrue(row.p50LatencyMicros() > 0, "a served request has positive latency");
+    }
+
+    @Test
+    void recordsRejectionsTimeoutsAndRetries() {
+        Simulator sim = new Simulator(1L);
+        MetricsCollector metrics = new MetricsCollector(1_000_000, 1_000_000_000);
+        Client client = new Client(sim, fullServer(sim), new FixedRetry(2, RETRY_DELAY_MICROS), metrics,
+                IDLE, GENEROUS_TIMEOUT_MICROS, 3);
+        client.send();
+        sim.runToCompletion();
+        List<BucketRow> rows = metrics.snapshot();
+        long rejections = rows.stream().mapToLong(BucketRow::rejections).sum();
+        long retries = rows.stream().mapToLong(BucketRow::retries).sum();
+        assertEquals(3, rejections, "three attempts, all rejected");
+        assertEquals(2, retries, "two of them were retries");
+    }
+
+    @Test
+    void recordsATimeoutForAnAcceptedButUnservedAttempt() {
+        Simulator sim = new Simulator(1L);
+        MetricsCollector metrics = new MetricsCollector(1_000_000, 1_000_000);
+        Server server = new Server(sim, 1, 1, new ExponentialServiceTime(OCCUPIED_FOREVER_MICROS));
+        server.submit(() -> {
+        });
+        Client client = new Client(sim, server, new NoRetry(), metrics, IDLE, TIGHT_TIMEOUT_MICROS, 1);
+        client.send();
+        sim.run(TIGHT_TIMEOUT_MICROS);
+        long timeouts = metrics.snapshot().stream().mapToLong(BucketRow::timeouts).sum();
+        assertEquals(1, timeouts);
+    }
+
+    @Test
     void requestIsUnsettledWhileInFlight() {
         Simulator sim = new Simulator(1L);
         Client client = client(sim, server(sim, 1, 0), new NoRetry(), GENEROUS_TIMEOUT_MICROS, 1);
@@ -294,7 +352,11 @@ class ClientTest {
 
     private static Client client(Simulator sim, Server server, RetryPolicy policy,
                                  long timeoutMicros, int maxAttempts, RateSchedule schedule) {
-        return new Client(sim, server, policy, schedule, timeoutMicros, maxAttempts);
+        return new Client(sim, server, policy, metrics(), schedule, timeoutMicros, maxAttempts);
+    }
+
+    private static MetricsCollector metrics() {
+        return new MetricsCollector(1_000_000, 1_000_000_000);
     }
 
     private static final class CountingPolicy implements RetryPolicy {

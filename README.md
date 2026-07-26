@@ -29,8 +29,9 @@ Work in progress.
 - **Done:** the server side (`Request`, `Server`, `ExponentialServiceTime`). Fixed worker count, bounded FIFO queue, and work is rejected once the queue is full.
 - **Done:** the client side (`Client`, `RateSchedule`). Poisson arrivals, a timeout on every attempt, and a hard attempt cap.
 - **Done:** all six policies — `NoRetry`, `FixedRetry`, `ExponentialBackoff`, `ExponentialBackoffWithJitter`, `TokenBucketRetry` and `CircuitBreaker`. Stateful ones recover through `onSuccess`/`onFailure`, which the client reports as requests settle.
-- **Temporary:** `retrystorm.Main` only runs a short smoke run of the engine. It takes no arguments and will be replaced by the scenario runner.
-- **Missing:** metrics, CSV output and the scenario runner. Nothing is measured or plotted yet.
+- **Done:** metrics collection and CSV output (`MetricsCollector`, `CsvWriter`). Per-second buckets track offered load, goodput, rejections, timeouts, retries, queue depth and success-latency percentiles.
+- **Done:** the scenario runner and the canonical overload experiment (`Scenario`, `ScenarioRunner`, `CanonicalExperiment`). `retrystorm.Main` runs all six policies against the same scenario and seed and writes one CSV per policy plus a combined CSV to `results/`.
+- **Missing:** the plotting script and a written-up chart. The collapse-versus-recovery result is visible in the CSVs but not yet drawn.
 
 ## Planned experiments
 
@@ -51,10 +52,22 @@ Same topology, same load, one policy at a time:
 
 ## Running
 
-The simulation. For now this is only the engine smoke run, and it takes no arguments:
+Run the canonical experiment. It writes one CSV per policy plus `combined.csv` into `results/`:
 
 ```bash
 cd sim && ./gradlew run
+```
+
+Re-run it across several seeds and write a per-seed summary to `results/validation.csv`, to check the result is not a fluke of one seed:
+
+```bash
+cd sim && ./gradlew run --args="validate"
+```
+
+Sweep the client count (total load) for backoff-with-jitter and the token bucket, writing `results/sweep.csv`. This shows where backoff stops being enough: it recovers with few clients and collapses with many.
+
+```bash
+cd sim && ./gradlew run --args="sweep"
 ```
 
 Tests:

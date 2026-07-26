@@ -3,6 +3,7 @@ package retrystorm.sim;
 import java.util.Objects;
 
 import retrystorm.engine.Simulator;
+import retrystorm.metrics.MetricsCollector;
 import retrystorm.policy.FailureKind;
 import retrystorm.policy.RetryDecision;
 import retrystorm.policy.RetryPolicy;
@@ -21,13 +22,14 @@ public final class Client {
     private final Simulator sim;
     private final Server server;
     private final RetryPolicy policy;
+    private final MetricsCollector metrics;
     private final RateSchedule rateSchedule;
     private final long attemptTimeoutMicros;
     private final int maxAttempts;
     private long requestsCreated;
 
-    public Client(Simulator sim, Server server, RetryPolicy policy, RateSchedule rateSchedule,
-                  long attemptTimeoutMicros, int maxAttempts) {
+    public Client(Simulator sim, Server server, RetryPolicy policy, MetricsCollector metrics,
+                  RateSchedule rateSchedule, long attemptTimeoutMicros, int maxAttempts) {
         if (attemptTimeoutMicros <= 0) {
             throw new IllegalArgumentException("attemptTimeoutMicros must be positive: " + attemptTimeoutMicros);
         }
@@ -37,6 +39,7 @@ public final class Client {
         this.sim = Objects.requireNonNull(sim, "sim");
         this.server = Objects.requireNonNull(server, "server");
         this.policy = Objects.requireNonNull(policy, "policy");
+        this.metrics = Objects.requireNonNull(metrics, "metrics");
         this.rateSchedule = Objects.requireNonNull(rateSchedule, "rateSchedule");
         this.attemptTimeoutMicros = attemptTimeoutMicros;
         this.maxAttempts = maxAttempts;
@@ -53,6 +56,7 @@ public final class Client {
 
     Request send() {
         Request request = new Request(requestsCreated++, sim.now());
+        metrics.recordArrival(sim.now());
         sendAttempt(request);
         return request;
     }
@@ -68,6 +72,7 @@ public final class Client {
         request.recordAttempt();
         Attempt attempt = new Attempt();
         if (!server.submit(() -> onServed(request, attempt))) {
+            metrics.recordRejection(sim.now());
             handleFailure(request, FailureKind.REJECTED);
             return;
         }
@@ -77,12 +82,14 @@ public final class Client {
     private void onServed(Request request, Attempt attempt) {
         if (attempt.resolve()) {
             request.settle(Outcome.SUCCESS);
+            metrics.recordSuccess(sim.now(), sim.now() - request.createdAtMicros());
             policy.onSuccess();
         }
     }
 
     private void onTimeout(Request request, Attempt attempt) {
         if (attempt.resolve()) {
+            metrics.recordTimeout(sim.now());
             handleFailure(request, FailureKind.TIMED_OUT);
         }
     }
@@ -98,7 +105,10 @@ public final class Client {
             request.settle(terminalOutcome(failureKind));
             return;
         }
-        sim.schedule(decision.delayMicros(), () -> sendAttempt(request));
+        sim.schedule(decision.delayMicros(), () -> {
+            metrics.recordRetry(sim.now());
+            sendAttempt(request);
+        });
     }
 
     private static Outcome terminalOutcome(FailureKind failureKind) {
