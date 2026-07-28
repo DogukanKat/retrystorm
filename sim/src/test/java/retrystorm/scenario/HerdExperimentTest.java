@@ -19,7 +19,7 @@ class HerdExperimentTest {
     @Test
     void failFastBreakerIsFarLessStableThanRetryOnlyWhenDistributed() {
         List<HerdRow> rows = HerdExperiment.run(CanonicalExperiment.scenario(), COUNTS, SEEDS);
-        assertEquals(2 * COUNTS.size() * SEEDS.size(), rows.size());
+        assertEquals(3 * COUNTS.size() * SEEDS.size(), rows.size());
 
         for (long seed : SEEDS) {
             double failFastMany = instability(rows, "fail-fast", 100, seed);
@@ -27,6 +27,18 @@ class HerdExperimentTest {
             assertTrue(failFastMany > 2 * retryOnlyMany,
                     "seed " + seed + ": fail-fast instability " + failFastMany
                             + " should dwarf retry-only " + retryOnlyMany + " at 100 clients");
+        }
+    }
+
+    @Test
+    void cooldownJitterLowersFailFastInstabilityAtManyClients() {
+        List<HerdRow> rows = HerdExperiment.run(CanonicalExperiment.scenario(), COUNTS, SEEDS);
+        for (long seed : SEEDS) {
+            double failFast = coefficientOfVariation(rows, "fail-fast", 100, seed);
+            double jittered = coefficientOfVariation(rows, "jittered-fail-fast", 100, seed);
+            assertTrue(jittered < failFast,
+                    "cooldown jitter lowers fail-fast recovery instability at 100 clients, seed " + seed
+                            + ": fail-fast=" + failFast + " jittered=" + jittered);
         }
     }
 
@@ -55,11 +67,19 @@ class HerdExperimentTest {
     }
 
     private static double instability(List<HerdRow> rows, String breaker, int clientCount, long seed) {
+        return find(rows, breaker, clientCount, seed).recoveryInstability();
+    }
+
+    private static double coefficientOfVariation(List<HerdRow> rows, String breaker, int clientCount, long seed) {
+        HerdRow row = find(rows, breaker, clientCount, seed);
+        return row.recoveryInstability() / row.recoveryGoodputPerSecond();
+    }
+
+    private static HerdRow find(List<HerdRow> rows, String breaker, int clientCount, long seed) {
         return rows.stream()
                 .filter(row -> row.breaker().equals(breaker)
                         && row.clientCount() == clientCount && row.seed() == seed)
                 .findFirst()
-                .orElseThrow()
-                .recoveryInstability();
+                .orElseThrow();
     }
 }

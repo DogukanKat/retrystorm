@@ -51,6 +51,17 @@ PHASE_STYLE = {
 }
 PHASE_ORDER = ["no-retry", "retry-only", "fail-fast"]
 
+# Baseline-vs-utilisation headline chart: fixed-retry takes the collapse (warm)
+# hue, the breakers take cool hues, no-retry stays grey. All from the series
+# palette; fail-fast is shown cool here to let the collapsing retry line stand out.
+BASELINE_STYLE = {
+    "no-retry": dict(color="#666666", linestyle=":", marker="s"),
+    "retry-only": dict(color="#313695", linestyle="-", marker="D"),
+    "fail-fast": dict(color="#1a9850", linestyle="-", marker="^"),
+    "fixed-retry": dict(color="#a50026", linestyle="--", marker="o"),
+}
+BASELINE_ORDER = ["no-retry", "retry-only", "fail-fast", "fixed-retry"]
+
 
 def save(fig, out_dir: Path, name: str) -> None:
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -160,6 +171,33 @@ def plot_phase(args) -> None:
                        Patch(facecolor="#888888", hatch="////", edgecolor="white", label="recovery")])
     save(fig, args.out_dir, "phase_collapse.png")
 
+    fig, ax = plt.subplots(figsize=FIG_SIZE)
+    for policy in BASELINE_ORDER:
+        sub = agg[agg["policy"] == policy].sort_values("utilisation")
+        ax.plot(sub["utilisation"], sub["baseline"], label=policy,
+                linewidth=1.6, markersize=8, **BASELINE_STYLE[policy])
+    ax.set_ylim(bottom=0)
+    ax.set_xticks(sorted(agg["utilisation"].unique()))
+    ax.set_xlabel("baseline utilisation")
+    ax.set_ylabel("baseline goodput (successes/s)")
+    ax.set_title("Baseline goodput vs baseline utilisation by policy")
+    ax.legend()
+    save(fig, args.out_dir, "baseline_vs_utilisation.png")
+
+
+def plot_open_trace(args) -> None:
+    df = pd.read_csv(args.open_trace)
+    sub = df[df["seed"] == args.seed].sort_values("time_s")
+
+    fig, ax = plt.subplots(figsize=FIG_SIZE)
+    ax.plot(sub["time_s"], sub["open_count"], color="#333333", linewidth=1.2)
+    ax.axvspan(args.overload_start, args.overload_end, **OVERLOAD_SHADE)
+    ax.set_ylim(bottom=0)
+    ax.set_xlabel("time (s)")
+    ax.set_ylabel("open breakers")
+    ax.set_title(f"Open fail-fast breakers over time (100 clients, seed {args.seed})")
+    save(fig, args.out_dir, "open_breakers_trace.png")
+
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Render retrystorm result charts.")
@@ -185,6 +223,14 @@ def main() -> None:
     phase.add_argument("--utilisation", type=float, default=0.9,
                        help="utilisation shown in the collapse bar chart")
     phase.set_defaults(func=plot_phase)
+
+    open_trace = sub.add_parser("open-trace", help="open-breaker count over time from the open-trace CSV")
+    open_trace.add_argument("--open-trace", type=Path, default=DEFAULT_RESULTS / "open_trace.csv")
+    open_trace.add_argument("--out-dir", type=Path, default=DEFAULT_DOCS)
+    open_trace.add_argument("--seed", type=int, default=42, help="seed whose trace is drawn")
+    open_trace.add_argument("--overload-start", type=float, default=20.0)
+    open_trace.add_argument("--overload-end", type=float, default=30.0)
+    open_trace.set_defaults(func=plot_open_trace)
 
     args = parser.parse_args()
     args.func(args)

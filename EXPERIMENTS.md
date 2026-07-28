@@ -82,12 +82,16 @@ cd sim && ./gradlew run --args="herd"
 
 Output: `results/herd.csv`.
 Columns: `breaker,client_count,seed,recovery_goodput,recovery_instability`.
-Runs a retry-only breaker and a fail-fast breaker, each split across
-1, 10, 50, 100, 200 independent clients at fixed total load, over seeds 42–46.
-Server capacity 1000 req/s; breaker window 50, trip at 0.5, 2 s cooldown.
-Recovery instability is the standard deviation of per-second goodput in the
-30–60 s window. Shows recovery goodput and its instability per breaker, client
-count and seed.
+Runs a retry-only breaker, a fail-fast breaker, and a jittered-fail-fast breaker
+(fail-fast with the open duration jittered per trip to `[cooldown, 2*cooldown]`),
+each split across 1, 10, 50, 100, 200 independent clients at fixed total load, over
+seeds 42–46. Server capacity 1000 req/s; breaker window 50, trip at 0.5, 2 s base
+cooldown. Recovery instability is the standard deviation of per-second goodput in
+the 30–60 s window. Shows recovery goodput and its instability per breaker, client
+count and seed. Cooldown jitter lowers fail-fast recovery instability by ~20% at
+100 clients (robust across seeds), but the effect is scale-dependent: it helps at
+50–100 clients and slightly worsens at 1 and 200, so it softens the synchronized
+recovery wave without being a general fix.
 
 ## Cooldown sweep
 

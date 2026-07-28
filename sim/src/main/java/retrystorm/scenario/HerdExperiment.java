@@ -73,6 +73,7 @@ public final class HerdExperiment {
     private static List<NamedBreaker> breakers() {
         return List.of(
                 new NamedBreaker("retry-only", Breakers::retryOnly),
-                new NamedBreaker("fail-fast", Breakers::failFast));
+                new NamedBreaker("fail-fast", Breakers::failFast),
+                new NamedBreaker("jittered-fail-fast", Breakers::jitteredFailFast));
     }
 }
